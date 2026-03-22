@@ -1,11 +1,15 @@
-
 import { Inter } from 'next/font/google'
-import {useEffect, useState} from "react";
-import {ColumnsType} from "antd/es/table";
-import {Button, Form, Input, message, Modal, Select, Space, Table, Tag} from "antd";
-import { faker } from '@faker-js/faker';
-import {User} from ".prisma/client";
+import { useEffect, useState } from "react";
+import { ColumnsType } from "antd/es/table";
+import { Button, Form, Input, message, Modal, Space, Table, Tag } from "antd";
+
 const inter = Inter({ subsets: ['latin'] })
+
+type Todo = {
+  id: number;
+  title: string;
+  completed: boolean;
+};
 
 const layout = {
   labelCol: { span: 8 },
@@ -17,14 +21,14 @@ const tailLayout = {
 };
 
 export default function Home() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const onFinish = async (values: any) => {
-    console.log(values);
     setIsModalOpen(false);
-    fetch('/api/create_user', {
+
+    fetch('/api/create_todo', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -33,92 +37,57 @@ export default function Home() {
       body: JSON.stringify(values)
     }).then(async response => {
       if (response.status === 200) {
-        const user = await response.json();
-        message.success('created user ' + user.name);
-        setUsers([...users, user]);
-
-      } else message.error(
-          `Failed to create user:\n ${JSON.stringify(await response.json())}`);
-    }).catch(res=>{message.error(res)})
+        const todo = await response.json();
+        message.success('Created task ' + todo.title);
+        setTodos([...todos, todo]);
+      } else {
+        message.error('Failed to create task');
+      }
+    });
   };
 
-  const onDelete = async (user: any) => {
-    const {id} = user;
-    setIsModalOpen(false);
-    fetch('/api/delete_user', {
+  const onDelete = async (todo: any) => {
+    const { id } = todo;
+
+    fetch('/api/delete_todo', {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({id})
+      body: JSON.stringify({ id })
     }).then(async response => {
       if (response.status === 200) {
-        await response.json();
-        message.success('Deleted user ' + user.name);
-        setUsers(users.filter(u=> u.id !== id ));
-
-      } else message.error(
-          `Failed to delete user:\n ${user.name}`);
-    }).catch(res=>{message.error(res)})
+        message.success('Deleted task');
+        setTodos(todos.filter(t => t.id !== id));
+      }
+    });
   };
 
-  const columns: ColumnsType<User> = [
+  const columns: ColumnsType<Todo> = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      render: (text) => <a>{text}</a>,
+      title: 'Task',
+      dataIndex: 'title',
+      key: 'title',
     },
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text) => <a>{text}</a>,
+      title: 'Status',
+      dataIndex: 'completed',
+      key: 'completed',
+      render: (completed) => (
+        completed ? <Tag color="green">Done</Tag> : <Tag color="red">Pending</Tag>
+      ),
     },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-    },
-    {
-      title: 'Address',
-      dataIndex: 'address',
-      key: 'address',
-    },
-
     {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-          <Space size="middle">
-            <a onClick={()=>onDelete(record)}>Delete</a>
-          </Space>
+        <Space size="middle">
+          <a onClick={() => onDelete(record)}>Delete</a>
+        </Space>
       ),
     },
   ];
 
-
-  const onReset = () => {
-    form.resetFields();
-  };
-
-  const onFill = () => {
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
-    const email = faker.internet.email({ firstName, lastName });
-    const street = faker.location.streetAddress();
-    const city = faker.location.city();
-    const state  = faker.location.state({ abbreviated: true });
-    const zip = faker.location.zipCode()
-
-    form.setFieldsValue({
-      name: `${firstName} ${lastName}`,
-      email: email,
-      address:
-          `${street}, ${city}, ${state}, US, ${zip}`
-    });
-  };
   const showModal = () => {
     setIsModalOpen(true);
     form.resetFields();
@@ -128,59 +97,53 @@ export default function Home() {
     setIsModalOpen(false);
     form.resetFields();
   };
-  useEffect(()=>{
-    fetch('api/all_user', {method: "GET"})
-        .then(res => {
-          res.json().then(
-              (json=> {setUsers(json)})
-          )
-        })
+
+  useEffect(() => {
+    fetch('api/all_todo')
+      .then(res => res.json())
+      .then(json => setTodos(json));
   }, []);
 
-  if (!users) return "Give me a second";
-
-  return  <>
+  return <>
     <Button type="primary" onClick={showModal}>
-      Add User
+      Add Task
     </Button>
-    <Modal title="Basic Modal" onCancel={handleCancel}
-           open={isModalOpen} footer={null}  width={800}>
+
+    <Modal
+      title="Add Task"
+      onCancel={handleCancel}
+      open={isModalOpen}
+      footer={null}
+      width={600}
+    >
       <Form
-          {...layout}
-          form={form}
-          name="control-hooks"
-          onFinish={onFinish}
-          style={{ maxWidth: 600 }}
+        {...layout}
+        form={form}
+        name="todo-form"
+        onFinish={onFinish}
       >
-        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="email" label="email" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="address" label="address" rules={[{ required: true }]}>
+        <Form.Item
+          name="title"
+          label="Task"
+          rules={[{ required: true }]}
+        >
           <Input />
         </Form.Item>
 
-        <Form.Item {...tailLayout} >
+        <Form.Item {...tailLayout}>
           <Button type="primary" htmlType="submit">
             Submit
           </Button>
-          <Button htmlType="button" onClick={onReset}>
+          <Button htmlType="button" onClick={() => form.resetFields()}>
             Reset
           </Button>
-          <Button  htmlType="button" onClick={onFill}>
-            Fill form
-          </Button>
-          <Button  htmlType="button" onClick={handleCancel}>
+          <Button htmlType="button" onClick={handleCancel}>
             Cancel
           </Button>
         </Form.Item>
       </Form>
     </Modal>
-    {/*<p>{JSON.stringify(users)}</p>*/}
-    <Table columns={columns} dataSource={users} />;
+
+    <Table columns={columns} dataSource={todos} rowKey="id" />
   </>;
-
-
 }
