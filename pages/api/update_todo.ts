@@ -6,14 +6,11 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const { title, dueDate, priority} = req.body;
+    const { id, completed } = req.body;
 
-    const todo = await prisma.todo.create({
-      data: {
-        title,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        priority: priority || "Medium"
-      }
+    const todo = await prisma.todo.update({
+      where: { id },
+      data: { completed }
     });
 
     res.status(200).json(todo);
