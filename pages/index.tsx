@@ -7,6 +7,7 @@ type Todo = {
   title: string;
   completed: boolean;
   dueDate?: string;
+  priority?: string;
 };
 
 const layout = {
@@ -128,6 +129,12 @@ export default function Home() {
     {
       title: 'Due Date',
       dataIndex: 'dueDate',
+      sorter: (a, b) => {
+        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return aTime - bTime;
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (date, record) => {
         if (!date) return 'No date';
 
@@ -155,6 +162,8 @@ export default function Home() {
     {
       title: 'Status',
       dataIndex: 'completed',
+      sorter: (a, b) => Number(a.completed) - Number(b.completed),
+      sortDirections: ['ascend', 'descend'],
       render: (completed, record) => {
         if (completed) {
           return <Tag color="green">Done</Tag>;
@@ -183,6 +192,13 @@ export default function Home() {
     {
       title: 'Priority',
       dataIndex: 'priority',
+      sorter: (a, b) => {
+        const order = { High: 0, Medium: 1, Low: 2 } as Record<string, number>;
+        const aValue = order[a.priority ?? 'Medium'];
+        const bValue = order[b.priority ?? 'Medium'];
+        return aValue - bValue;
+      },
+      sortDirections: ['ascend', 'descend'],
       render: (priority) => {
         if (priority === 'High') {
           return <Tag color = "red">High</Tag>;
