@@ -1,10 +1,6 @@
-import { Inter } from 'next/font/google'
 import { useEffect, useState } from "react";
 import { ColumnsType } from "antd/es/table";
-import { Button, Form, Input, message, Modal, Space, Table, Tag, DatePicker } from "antd";
-import { Select } from "antd";
-
-const inter = Inter({ subsets: ['latin'] })
+import { Button, Form, Input, message, Modal, Space, Table, Tag, DatePicker, Select } from "antd";
 
 type Todo = {
   id: number;
@@ -30,6 +26,17 @@ export default function Home() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [editForm] = Form.useForm();
+
+  const completedCount = todos.filter((todo) => todo.completed).length;
+  const pendingCount = todos.filter((todo) => !todo.completed).length;
+  const overdueCount = todos.filter((todo) => {
+    if (!todo.dueDate || todo.completed) return false;
+    const due = new Date(todo.dueDate);
+    const today = new Date();
+    due.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return due < today;
+  }).length;
 
   const onFinish = async (values: any) => {
     setIsModalOpen(false);
@@ -199,52 +206,82 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    fetch('api/all_todo')
+    fetch('/api/all_todo')
       .then(res => res.json())
       .then(json => setTodos(json));
   }, []);
 
-  return <>
-    <Button type="primary" onClick={() => setIsModalOpen(true)}>
-      Add Task
-    </Button>
+  return (
+    <div className="page-shell">
+      <header className="page-header">
+        <div className="eyebrow">CSCI 8656 Project</div>
+        <h1 className="page-title">Task Tracker</h1>
+        <p className="page-subtitle">
+          A simple app made to track items on your TODO list.
+          <br />
+          Add something new, update a task, or celebrate a finished item.
+        </p>
+      </header>
 
-    <Modal open={isModalOpen} onCancel={() => setIsModalOpen(false)} footer={null}>
-      <Form form={form} onFinish={onFinish} {...layout}>
-        <Form.Item name="title" label="Task" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
+      <section className="hero-card">
+        <div className="actions-row">
+          <Button className="button-primary" type="primary" onClick={() => setIsModalOpen(true)}>
+            Add a new task
+          </Button>
+          <div className="stat-card">
+            <div className="stat-title">Total tasks</div>
+            <div className="stat-value">{todos.length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-title">Pending</div>
+            <div className="stat-value">{pendingCount}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-title">Overdue</div>
+            <div className="stat-value">{overdueCount}</div>
+          </div>
+        </div>
+      </section>
 
-        <Form.Item name="dueDate" label="Due Date">
-          <DatePicker />
-        </Form.Item>
+      <div className="table-wrapper">
+        <Table columns={columns} dataSource={todos} rowKey="id" pagination={{ pageSize: 8 }} />
+      </div>
 
-        <Form.Item name = "priority" label="Priority">
-          <Select>
-            <Select.Option value = "Low">Low</Select.Option>
-            <Select.Option value = "Medium">Medium</Select.Option>
-            <Select.Option value = "High">High</Select.Option>
-          </Select>
-        </Form.Item>
+      <Modal open={isModalOpen} onCancel={() => setIsModalOpen(false)} footer={null}>
+        <Form form={form} onFinish={onFinish} {...layout}>
+          <Form.Item name="title" label="Task" rules={[{ required: true, message: 'Please enter a task name.' }]}> 
+            <Input placeholder="Write something you'd like to complete" />
+          </Form.Item>
 
-        <Form.Item {...tailLayout}>
-          <Button type="primary" htmlType="submit">Submit</Button>
-        </Form.Item>
-      </Form>
-    </Modal>
+          <Form.Item name="dueDate" label="Due Date">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
 
-    <Modal open={isEditModalOpen} onCancel={handleEditCancel} footer={null}>
-      <Form form={editForm} onFinish={onEditFinish} {...layout}>
-        <Form.Item name="title" label="Task" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
+          <Form.Item name="priority" label="Priority" initialValue="Medium">
+            <Select>
+              <Select.Option value="Low">Low</Select.Option>
+              <Select.Option value="Medium">Medium</Select.Option>
+              <Select.Option value="High">High</Select.Option>
+            </Select>
+          </Form.Item>
 
-        <Form.Item {...tailLayout}>
-          <Button type="primary" htmlType="submit">Update</Button>
-        </Form.Item>
-      </Form>
-    </Modal>
+          <Form.Item {...tailLayout}>
+            <Button type="primary" htmlType="submit">Add task</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
 
-    <Table columns={columns} dataSource={todos} rowKey="id" />
-  </>;
+      <Modal open={isEditModalOpen} onCancel={handleEditCancel} footer={null}>
+        <Form form={editForm} onFinish={onEditFinish} {...layout}>
+          <Form.Item name="title" label="Task" rules={[{ required: true, message: 'Please enter a task name.' }]}> 
+            <Input placeholder="Update this task name" />
+          </Form.Item>
+
+          <Form.Item {...tailLayout}>
+            <Button type="primary" htmlType="submit">Update task</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 }
